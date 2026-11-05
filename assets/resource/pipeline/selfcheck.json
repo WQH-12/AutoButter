@@ -1,0 +1,20 @@
+{
+    // 环境自检：不依赖任何模板图，只验证「截图 → 存盘」这条链路是否正常。
+    // 运行后截图保存在 log_dir/screencap/ 下，文件名 selfcheck.png
+    // 若这张图是全黑，说明游戏开了 FLAG_SECURE，需要先解决再往下做。
+    "SelfCheck": {
+        "recognition": "DirectHit",
+        "action": "Screencap",
+        "filename": "selfcheck",
+        "format": "png",
+        "post_delay": 300
+    },
+    // 屏幕中间点一下，用来确认输入通道是否可用。
+    // 坐标基于 720p 画布，也就是 720x1280 的竖屏基准。
+    "TapCenter": {
+        "recognition": "DirectHit",
+        "target": [360, 640],
+        "action": "Click",
+        "post_delay": 500
+    }
+}
