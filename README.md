@@ -1,43 +1,63 @@
-<!-- markdownlint-disable MD033 MD041 -->
-<p align="center">
-  <img alt="LOGO" src="https://cdn.jsdelivr.net/gh/MaaAssistantArknights/design@main/v1/icons/maa-logo_512x512.png" width="256" height="256" />
-</p>
+# AutoButter
 
-<div align="center">
+基于 [MaaFramework](https://github.com/MaaXYZ/MaaFramework) 的安卓平台小游戏资源自动获取项目。
 
-# MaaPracticeBoilerplate
+当前处于骨架阶段：只有环境自检任务，还没有针对具体游戏的流水线。
 
-</div>
+## 目录
 
-本仓库为 [MaaFramework](https://github.com/MaaXYZ/MaaFramework) 所提供的项目模板，开发者可基于此模板直接创建自己的 MaaXXX 项目。
+```tree
+assets/
+├── interface.json          # 项目接口：任务入口、控制器、选项
+└── resource/
+    ├── pipeline/           # 任务流水线 JSON
+    ├── image/              # 模板匹配素材（720p 画布裁切）
+    └── model/ocr/          # OCR 模型，已被 .gitignore 忽略，需本地自行下载
+agent/                      # Python 自定义识别/动作（当前未启用）
+deps/tools/                 # 从 MaaFramework 同步的 JSON Schema
+docs/                       # 模板自带的开发说明
+```
 
-> **MaaFramework** 是基于图像识别技术、运用 [MAA](https://github.com/MaaAssistantArknights/MaaAssistantArknights) 开发经验去芜存菁、完全重写的新一代自动化黑盒测试框架。
-> 低代码的同时仍拥有高扩展性，旨在打造一款丰富、领先、且实用的开源库，助力开发者轻松编写出更好的黑盒测试程序，并推广普及。
+## 环境准备
 
-## 即刻开始
+1. **ADB**：统一使用 QtScrcpy 自带的那份，路径 `D:\QtScrcpy-win-x64-v4.2.1\adb.exe`。
+   不要再装第二份 platform-tools，两个 adb server 会互相抢占 5037 端口。
+2. **OCR 模型**：下载 [ppocr_v6-small.zip](https://download.maafw.xyz/MaaCommonAssets/OCR/ppocr_v6/ppocr_v6-small.zip)
+   解压到 `assets/resource/model/ocr/`，确保有 `det.onnx`、`rec.onnx`、`keys.txt`。
+3. **Node.js 22+**：用于跑 `maa-tools` 做静态检查。
+4. **MFAAvalonia**：运行和调试用的 GUI，需 .NET 10 Desktop Runtime。
 
-**请不要直接克隆本仓库！你应该通过模板创建自己的项目！**  
+## 常用命令
 
-请阅读 [如何开发](./docs/zh_cn/develop/how_to_develop.md)。
+```bash
+# 安装依赖
+pnpm install
 
-向本模板仓库提交改动前，请阅读 [PR 规范](./docs/zh_cn/develop/pull_request_guidelines.md)。
+# 校验 interface.json 与 pipeline
+node node_modules/@nekosu/maa-tools/bin/maa-tools check
+```
 
-## 生态共建
+模板文档写的是 `npx @nekosu/maa-tools check`，本机没有全局 `npx` 时用上面这条。
 
-MAA 正计划建设为一类项目，而非舟的单一软件。
+## 当前任务
 
-若您的项目依赖于 MaaFramework，我们欢迎您将它命名为 MaaXXX, MXA, MAX 等等。当然，这是许可而不是限制，您也可以自由选择其他与 MAA 无关的名字，完全取决于您自己的想法！
+| 任务 | 节点 | 作用 |
+|---|---|---|
+| 环境自检：截图存盘 | `SelfCheck` | 截图存到 `log_dir/screencap/selfcheck.png`，用于确认不是黑屏 |
+| 环境自检：点击屏幕中心 | `TapCenter` | 在 720x1280 画布中心点击，验证输入通道 |
 
-同时，我们也非常欢迎您提出 PR，在 [社区项目列表](https://github.com/MaaXYZ/MaaFramework#%E7%A4%BE%E5%8C%BA%E9%A1%B9%E7%9B%AE) 中添加上您的项目！
+## 开发顺序
 
-## 常见问题
+1. 手机连上后先跑「环境自检：截图存盘」，确认截出来的图不是全黑（全黑 = FLAG_SECURE）。
+2. 用 `adb exec-out screencap -p` 抓无损原图，缩放到 720 短边后再裁模板。
+3. 按游戏实际界面写 pipeline，每加一个节点就用调试工具单节点验证。
+4. 需要跨节点状态（计数、超时回退）时再启用 `agent/`。
 
-请阅读 [常见问题](./docs/zh_cn/develop/faq.md)。
+## 素材来源
 
-## 鸣谢
+模板素材**必须**来自无损原图（`adb exec-out screencap -p` 的 PNG），缩放到 720 短边后再裁剪。
+QtScrcpy 的投屏是 H.264 有损视频流，不能用来裁模板。
 
-本项目由 **[MaaFramework](https://github.com/MaaXYZ/MaaFramework)** 强力驱动！
+## 许可
 
-感谢以下开发者对本项目作出的贡献（下面链接改成你自己的项目地址）:
-
-[![Contributors](https://contrib.rocks/image?repo=MaaXYZ/MaaFramework&max=1000)](https://github.com/MaaXYZ/MaaFramework/graphs/contributors)
+MIT
