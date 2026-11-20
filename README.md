@@ -89,8 +89,6 @@ deps/tools/               # 从 MaaFramework 同步的 JSON Schema
    **MaaFw 必须与 `install/runtimes/win-x64/native` 里的 MaaFramework 同版本**，
    否则 GUI 报 `Protocol version mismatch`。
 4. Node.js 22+，用于跑 `maa-tools` 静态检查。
-5. adb：本机统一用 QtScrcpy 自带的那份（`D:\QtScrcpy-win-x64-v4.2.1\adb.exe`）。
-   别再装第二份 platform-tools，两个 adb server 会抢 5037 端口。
 
 ### 常用命令
 
@@ -136,11 +134,6 @@ python tools\build_release.py --clean --zip           # 构建发布包
 | `agent/popup_guard.py` | 弹窗识别与点击屏蔽 |
 | `agent/priority.py` | 物品优先级打分 |
 | `agent/layout.py` | 分辨率与坐标换算 |
-
-## 素材与截图
-
-模板素材**必须**来自无损原图（`adb exec-out screencap -p` 的 PNG），缩放到 720 短边后再裁剪。
-QtScrcpy 的投屏是 H.264 有损视频流，不能用来裁模板。
 
 ## 许可
 
