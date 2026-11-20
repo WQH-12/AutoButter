@@ -2,7 +2,8 @@ from pathlib import Path
 
 import shutil
 
-assets_dir = Path(__file__).parent.parent.resolve() / "assets"
+root_dir = Path(__file__).parent.parent.resolve()
+assets_dir = root_dir / "assets"
 
 
 def configure_ocr_model():
@@ -11,7 +12,7 @@ def configure_ocr_model():
         print(f"File Not Found: {assets_ocr_dir}")
         exit(1)
 
-    ocr_dir = assets_dir / "resource" / "model" / "ocr"
+    ocr_dir = root_dir / "resource" / "model" / "ocr"
     if not ocr_dir.exists():   # copy default OCR model only if dir does not exist
         shutil.copytree(
             assets_dir / "MaaCommonAssets" / "OCR" / "ppocr_v6" / "small",

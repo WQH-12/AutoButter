@@ -1,0 +1,220 @@
+{
+    // 本文件主要定义了通用 UI 的行为和显示内容
+    // 文档：https://maafw.xyz/docs/3.3-ProjectInterfaceV2
+    "interface_version": 2,
+    "name": "AutoButter",
+    "description": "安卓平台小游戏资源自动获取。",
+    "license": "MIT",
+    "welcome": "首次使用！请先在设置中选择设备，然后确认截图正常后再运行任务。",
+    "version": "0.1.0",
+    "controller": [
+        {
+            "name": "安卓端",
+            "type": "Adb",
+            // 模板素材统一按 720 短边画布裁切，不要随意改动
+            "display_short_side": 720
+        }
+    ],
+    "resource": [
+        {
+            "name": "默认",
+            "path": [
+                "./resource"
+            ]
+        }
+    ],
+    // 自定义识别/动作在 agent/ 下实现，由 MFAAvalonia 以子进程方式启动。
+    // child_args 里的路径相对于本文件所在目录。
+    "agent": {
+        "child_exec": "python",
+        "child_args": [
+            "./agent/main.py"
+        ]
+    },
+    // 物品优先级：0=不收集；1~7 越大越优先。
+    // 当前默认只收集酒米（alcohol=7，其它=0）。
+    "option": {
+        "item_priority": {
+            "type": "input",
+            "label": "物品收集优先级",
+            "description": "0=不收集；1~7 越大越优先。云英、卷轴、玉璧、蜂蜜、饷银、枸杞、酒米分别对应 1~7。",
+            "inputs": [
+                {
+                    "name": "stone_priority",
+                    "label": "云英优先级",
+                    "default": "0",
+                    "verify": "^[0-7]$",
+                    "pipeline_type": "int"
+                },
+                {
+                    "name": "fabric_priority",
+                    "label": "卷轴优先级",
+                    "default": "0",
+                    "verify": "^[0-7]$",
+                    "pipeline_type": "int"
+                },
+                {
+                    "name": "jade_priority",
+                    "label": "玉璧优先级",
+                    "default": "0",
+                    "verify": "^[0-7]$",
+                    "pipeline_type": "int"
+                },
+                {
+                    "name": "honey_priority",
+                    "label": "蜂蜜优先级",
+                    "default": "0",
+                    "verify": "^[0-7]$",
+                    "pipeline_type": "int"
+                },
+                {
+                    "name": "silver_priority",
+                    "label": "饷银优先级",
+                    "default": "0",
+                    "verify": "^[0-7]$",
+                    "pipeline_type": "int"
+                },
+                {
+                    "name": "berry_priority",
+                    "label": "枸杞优先级",
+                    "default": "0",
+                    "verify": "^[0-7]$",
+                    "pipeline_type": "int"
+                },
+                {
+                    "name": "alcohol_priority",
+                    "label": "酒米优先级",
+                    "default": "7",
+                    "verify": "^[0-7]$",
+                    "pipeline_type": "int"
+                }
+            ],
+            "pipeline_override": {
+                "选格并点击": {
+                    "custom_recognition_param": {
+                        "priority_levels": {
+                            "stone": "{stone_priority}",
+                            "fabric": "{fabric_priority}",
+                            "jade": "{jade_priority}",
+                            "honey": "{honey_priority}",
+                            "silver": "{silver_priority}",
+                            "berry": "{berry_priority}",
+                            "alcohol": "{alcohol_priority}"
+                        }
+                    }
+                },
+                "主循环选格": {
+                    "custom_recognition_param": {
+                        "priority_levels": {
+                            "stone": "{stone_priority}",
+                            "fabric": "{fabric_priority}",
+                            "jade": "{jade_priority}",
+                            "honey": "{honey_priority}",
+                            "silver": "{silver_priority}",
+                            "berry": "{berry_priority}",
+                            "alcohol": "{alcohol_priority}"
+                        }
+                    }
+                },
+                "他人秘境选格": {
+                    "custom_recognition_param": {
+                        "priority_levels": {
+                            "stone": "{stone_priority}",
+                            "fabric": "{fabric_priority}",
+                            "jade": "{jade_priority}",
+                            "honey": "{honey_priority}",
+                            "silver": "{silver_priority}",
+                            "berry": "{berry_priority}",
+                            "alcohol": "{alcohol_priority}"
+                        }
+                    }
+                },
+                "选行并点击": {
+                    "custom_recognition_param": {
+                        "priority_levels": {
+                            "stone": "{stone_priority}",
+                            "fabric": "{fabric_priority}",
+                            "jade": "{jade_priority}",
+                            "honey": "{honey_priority}",
+                            "silver": "{silver_priority}",
+                            "berry": "{berry_priority}",
+                            "alcohol": "{alcohol_priority}"
+                        }
+                    }
+                },
+                "主循环选行": {
+                    "custom_recognition_param": {
+                        "priority_levels": {
+                            "stone": "{stone_priority}",
+                            "fabric": "{fabric_priority}",
+                            "jade": "{jade_priority}",
+                            "honey": "{honey_priority}",
+                            "silver": "{silver_priority}",
+                            "berry": "{berry_priority}",
+                            "alcohol": "{alcohol_priority}"
+                        }
+                    }
+                }
+            }
+        },
+        "dispatch_mode": {
+            "type": "select",
+            "label": "别人秘境鸡妖派遣模式",
+            "description": "完整队伍优先：按酒米/等级目标凑齐才派；有几只派几只：空闲几只就派几只（可能少于目标数）。两种模式都会受鸡妖总数上限约束。",
+            "default_case": "full",
+            "cases": [
+                {
+                    "name": "full",
+                    "label": "完整队伍优先",
+                    "description": "默认。鸡妖不够目标数时先延迟该资源，优先处理能凑齐的资源；鸡妖总数只有 1~2 时目标数会自动降到总数。",
+                    "pipeline_override": {
+                        "派遣策略": {
+                            "custom_recognition_param": {
+                                "dispatch_mode": "full"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "utilize",
+                    "label": "有几只派几只",
+                    "description": "尽量不让鸡妖闲置：当前空闲几只就派几只，最多不超过目标数和总数；可能用少于目标数的鸡妖开始采集。",
+                    "pipeline_override": {
+                        "派遣策略": {
+                            "custom_recognition_param": {
+                                "dispatch_mode": "utilize"
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    },
+    "global_option": ["item_priority", "dispatch_mode"],
+    "task": [
+        {
+            "name": "进入淫乱秘境",
+            "entry": "进入淫乱秘境"
+        },
+        {
+            "name": "领取恭喜獲得弹窗",
+            "entry": "关闭获得弹窗"
+        },
+        {
+            "name": "选格并点击（调试用）",
+            "entry": "选格并点击"
+        },
+        {
+            "name": "探寻列表选行（调试用）",
+            "entry": "选行并点击"
+        },
+        {
+            "name": "派遣并掠奪（调试用）",
+            "entry": "派遣并掠奪"
+        },
+        {
+            "name": "主任务（进秘境→选格→派遣→探尋→别人秘境）",
+            "entry": "主任务"
+        }
+    ]
+}

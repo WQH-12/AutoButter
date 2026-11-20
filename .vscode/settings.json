@@ -2,16 +2,16 @@
     "json.schemas": [
         {
             "fileMatch": [
-                "/assets/resource/**/*.json",
+                "/resource/**/*.json",
                 "/install/resource/**/*.json",
-                "/assets/resource/**/*.jsonc",
+                "/resource/**/*.jsonc",
                 "/install/resource/**/*.jsonc"
             ],
             "url": "/deps/tools/pipeline.schema.json"
         },
         {
             "fileMatch": [
-                "/assets/interface.json",
+                "/interface.json",
                 "/install/interface.json"
             ],
             "url": "/deps/tools/interface.schema.json"
@@ -24,7 +24,8 @@
         }
     ],
     "files.associations": {
-        "**/assets/**/*.json": "jsonc"
+        "**/resource/**/*.json": "jsonc",
+        "**/interface.json": "jsonc"
     },
     "[json][jsonc]": {
         "editor.formatOnSave": true,
