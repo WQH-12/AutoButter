@@ -29,7 +29,10 @@ import re
 import sys
 import time
 
-import cv2
+try:
+    import cv2
+except ImportError:  # Android 的 agent core 不带 opencv，用 numpy/Pillow 子集
+    import cv2lite as cv2
 import numpy as np
 
 from popup_guard import clear_popups

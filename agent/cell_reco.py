@@ -15,7 +15,10 @@ import os
 import re
 import sys
 
-import cv2
+try:
+    import cv2
+except ImportError:  # Android 的 agent core 不带 opencv，用 numpy/Pillow 子集
+    import cv2lite as cv2
 import numpy as np
 
 import priority as priority_cfg

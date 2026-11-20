@@ -4695,6 +4695,94 @@ release\AutoButter\setup\install_env.ps1 -CheckOnly
 **发版后要做的**：改完 `resource/`、`agent/`、`interface.json` 后重新构建并覆盖资产，
 版本号同步改 `interface.json` 的 `version`，再打新 tag。
 
+### 3.73 安卓单机版：MaaFwApp 外壳 + cv2lite（11-20）
+
+目标：不连电脑，APK 里带资源、agent、识别模板，靠 Shizuku / root 驱动后台虚拟屏。
+
+**外壳选型**：MaaFwApp（https://github.com/Aliothmoon/MaaFwApp，AGPL-3.0）。
+资源构建期打进 APK，设备上换不了 `interface.json`；`controller` 只取 `type: Adb`
+的那项，`child_exec` / `child_args` 不参与实际命令行，agent 可执行体写在打包配方的
+`agent.runtimes` 里。
+
+**构建环境**（都在 E 盘，不进仓库）：
+
+| 项 | 路径 / 版本 |
+|:---|:---|
+| JDK | `E:\work\toolchain\jdk-17.0.21+9`（Temurin 17.0.21） |
+| Android SDK | `E:\work\toolchain\android-sdk`（cmdline-tools 12.0） |
+| SDK 组件 | `platforms;android-37.0`、`build-tools;37.0.0`、`cmake;3.22.1`、`ndk;28.2.13676358`、`platform-tools` |
+| 外壳源码 | `E:\work\MaaFwApp`（gradle 9.4.1 / AGP 9.2.1 / Kotlin 2.3.21，compileSdk 37、minSdk 28） |
+| MaaFramework | 5.16.1（`setup_maa_framework.py --abi arm64-v8a` 铺进 `app/src/main/jniLibs`） |
+| agent core | `3.13.15-maafw5.16.1`（CPython 3.13.15 + numpy + maa） |
+| 打包配方 | `E:\work\pi-profile-autobutter.yaml` |
+| agent dist | `E:\work\agent-dist2`（51.3 MB，含 Pillow 11.0.0） |
+
+**关键阻塞与解法：Android 上没有 cv2**
+
+MaaAgentCoreAndroid 只带 CPython + numpy，Chaquopy 索引的 opencv 只有 cp38 / cp310
+轮子，和 core 的 cp313 不兼容。所以新增 `agent/cv2lite.py`：用 numpy + Pillow 实现
+agent 实际用到的 cv2 子集（imread/imdecode、BGR2HSV/GRAY、matchTemplate
+TM_CCOEFF_NORMED、minMaxLoc、resize、MORPH_CLOSE、连通域/轮廓、absdiff）。
+
+- 导入方式：`try: import cv2 / except ImportError: import cv2lite as cv2`，
+  桌面端仍走真 cv2，行为不变。
+- `matchTemplate` 用 FFT + 积分图，多通道按 OpenCV 口径累加分子/分母。
+- `findContours` / `connectedComponentsWithStats` 用行程编码 + 并查集。
+- 4 张实机整帧上，cv2lite 与真 cv2 的 `detect_cells` / `find_timers` /
+  `RowPicker.scan` / `refresh_state` / `compare` / `page_dy` / `_panel_state`
+  结果**逐项一致**（`E:\work\cmp*.py` 对比脚本，未入库）。
+- 性能（桌面，720x1560）：detect_cells 46ms、find_timers 631ms、
+  RowPicker.scan 222ms、layout._match 46ms。
+
+**chicken_reco 改走 pipeline FeatureMatch**
+
+原实现是 SIFT + BFMatcher + findHomography。Android 没有 cv2.SIFT，改调
+`context.run_recognition` 的 `FeatureMatch`（MaaFramework 内部同样是
+SIFT + RANSAC + 抹除迭代，`FeatureMatcher.cpp` 的 `while (scene.size() >= 4)`
++ `remove inside points`，一次调用就返回多实例）。判定仍是
+`count >= min_inliers` + 面积比 0.4~3.0 + IoU 0.35 去重。
+桌面端 `hasattr(cv2, "SIFT_create")` 为真，仍走原来的 SIFT 路径。
+
+**产物**：
+
+- `release/AutoButter-android/AutoButter-0.1.0-android.apk`，80 029 078 字节
+- SHA256：`2D0EEC998B5F402CE0B5E6BA38B57495F643768707D2ECEAEE636E8CD2BA8A72`
+- 签名：`E:\work\autobutter-release.jks`，alias `autobutter`，
+  store/key password `autobutter2026`，证书 SHA256
+  `58ab98700cf1aa1fad89c92437a13411880cc9104263fabd4bd8d992db63c963`
+- 包名 `com.aliothmoon.maafw.autobutter`，label `AutoButter`
+
+**重建命令**（改完 agent 或资源后）：
+
+```powershell
+# 1. 重新出 agent runtime（依赖没变可跳过）
+cd E:\work\MaaFwApp
+python scripts\build_agent_bundle.py --out E:\work\agent-dist2 `
+    --requirements E:\work\agent-req.txt `
+    --extra-index-url https://chaquo.com/pypi-13.1/ `
+    --core-tag 3.13.15-maafw5.16.1
+
+# 2. 出 APK
+$env:JAVA_HOME="E:\work\toolchain\jdk-17.0.21+9"
+.\gradlew.bat :app:assembleRelease
+
+# 3. 对齐 + 签名
+$bt="E:\work\toolchain\android-sdk\build-tools\37.0.0"
+& "$bt\zipalign.exe" -p -f 4 app\build\outputs\apk\release\app-release-unsigned.apk out-aligned.apk
+& "$bt\apksigner.bat" sign --ks E:\work\autobutter-release.jks `
+    --ks-key-alias autobutter --ks-pass pass:autobutter2026 `
+    --key-pass pass:autobutter2026 --out AutoButter-0.1.0-android.apk out-aligned.apk
+```
+
+**未验证（要用户在真机确认）**：
+
+- agent 在 Android 上能否启动（`bin/python3` + PYTHONHOME + chaquopy/lib 的
+  LD_LIBRARY_PATH），以及 `Toolkit.init_option("./")` 在解包根下是否正常。
+- FeatureMatch 路径下鸡妖识别的实际命中率 / 误检率（桌面 SIFT 路径的阈值
+  不一定直接平移）。
+- 720P 后台虚拟屏下模板匹配分数是否与桌面 720 短边一致。
+- Shizuku 授权后原生 controller 的点击落点。
+
 ## 4. 下一步待办
 
 ### 4.0 链路开工前置（11-10 已全部完成）

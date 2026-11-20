@@ -14,7 +14,10 @@ import json
 import os
 import sys
 
-import cv2
+try:
+    import cv2
+except ImportError:  # Android 的 agent core 不带 opencv，用 numpy/Pillow 子集
+    import cv2lite as cv2
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -162,6 +165,78 @@ def _iou(a, b):
     return inter / float(max(1, a1 + a2 - inter))
 
 
+
+_CHICKEN_TPL = [n for names in POSES.values() for n in names]
+_TPL_W, _TPL_H = 102, 93
+
+
+def _feature_hits(context, image, roi, min_inliers):
+    """Android 上没有 cv2.SIFT，改用 pipeline 的 FeatureMatch。
+
+    MaaFramework 的 FeatureMatcher 内部就是 SIFT + RANSAC + 抹除迭代，
+    一次调用会返回同一模板的多个实例（源码 FeatureMatcher.cpp 的
+    `while (scene.size() >= 4)` + `remove inside points`），正好对上
+    原实现的 max_rounds 语义。box 是 ROI 裁剪后的绝对坐标。
+    """
+    node = "__chicken_feature"
+    detail = context.run_recognition(node, image, {
+        node: {
+            "recognition": "FeatureMatch",
+            "template": list(_CHICKEN_TPL),
+            "roi": [int(v) for v in roi],
+            "count": int(min_inliers),
+            "detector": "SIFT",
+            "ratio": 0.75,
+            "order_by": "Score",
+        }
+    })
+    if detail is None or not detail.hit:
+        return []
+
+    raw = list(detail.all_results or [])
+    if not raw and detail.best_result is not None:
+        raw = [detail.best_result]
+
+    hits = []
+    for r in raw:
+        b = getattr(r, "box", None)
+        if b is None:
+            continue
+        cnt = int(getattr(r, "count", 0) or 0)
+        if cnt < min_inliers:
+            continue
+        bx0, by0 = int(b.x), int(b.y)
+        bx1, by1 = bx0 + int(b.w), by0 + int(b.h)
+        area = (int(b.w) * int(b.h)) / float(_TPL_W * _TPL_H)
+        if not (0.4 <= area <= 3.0):
+            continue
+        box = (bx0, by0, bx1, by1)
+        if any(_iou(box, h[3]) > 0.35 for h in hits):
+            continue
+        hits.append((cnt, (bx0 + bx1) / 2.0, (by0 + by1) / 2.0,
+                     box, "feature", "?"))
+    hits.sort(key=lambda t: -t[0])
+    return hits
+
+
+def _to_result(hits):
+    best = max(hits, key=lambda t: t[0])
+    # 注意：Maa 的 box 是 (x, y, w, h)，不是 (x0, y0, x1, y1)。
+    bx0, by0, bx1, by1 = best[3]
+    return CustomRecognition.AnalyzeResult(
+        box=(bx0, by0, bx1 - bx0, by1 - by0),
+        detail={
+            "count": len(hits),
+            "chickens": [
+                {"inliers": h[0], "cx": round(h[1], 1), "cy": round(h[2], 1),
+                 "box": list(h[3]), "template": h[4], "pose": h[5]}
+                for h in hits
+            ],
+            "blocked_x": [[h[3][0], h[3][2]] for h in hits],
+        },
+    )
+
+
 _FINDER = None
 
 
@@ -192,32 +267,21 @@ try:
                 roi = param.get("roi") or [0, 250, 720, 810]
             min_inliers = int(param.get("min_inliers", 10))
 
-            finder = get_finder()
-            if not finder.ready:
-                return CustomRecognition.AnalyzeResult(
-                    box=None, detail={"error": "no chicken template found"})
-            hits = finder.find(argv.image, roi, max_rounds=int(param.get("max_rounds", 8)))
-            if min_inliers != finder.min_inliers:
-                hits = [h for h in hits if h[0] >= min_inliers]
+            if not hasattr(cv2, "SIFT_create"):
+                hits = _feature_hits(context, argv.image, roi, min_inliers)
+            else:
+                finder = get_finder()
+                if not finder.ready:
+                    return CustomRecognition.AnalyzeResult(
+                        box=None, detail={"error": "no chicken template found"})
+                hits = finder.find(
+                    argv.image, roi, max_rounds=int(param.get("max_rounds", 8)))
+                if min_inliers != finder.min_inliers:
+                    hits = [h for h in hits if h[0] >= min_inliers]
             if not hits:
                 return CustomRecognition.AnalyzeResult(
                     box=None, detail={"count": 0, "chickens": []})
-
-            best = max(hits, key=lambda t: t[0])
-            # 注意：Maa 的 box 是 (x, y, w, h)，不是 (x0, y0, x1, y1)。
-            bx0, by0, bx1, by1 = best[3]
-            return CustomRecognition.AnalyzeResult(
-                box=(bx0, by0, bx1 - bx0, by1 - by0),
-                detail={
-                    "count": len(hits),
-                    "chickens": [
-                        {"inliers": h[0], "cx": round(h[1], 1), "cy": round(h[2], 1),
-                         "box": list(h[3]), "template": h[4], "pose": h[5]}
-                        for h in hits
-                    ],
-                    "blocked_x": [[h[3][0], h[3][2]] for h in hits],
-                },
-            )
+            return _to_result(hits)
 
     def register(name="Chicken"):
         """注册到 AgentServer（agent/main.py 里调用）。"""
