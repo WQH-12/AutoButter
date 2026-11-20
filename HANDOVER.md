@@ -4810,7 +4810,7 @@ LD_LIBRARY_PATH: "{bundle}/prefix/lib:{bundle}/site-packages/chaquopy/lib:{bundl
 原本只有 1 个提交，所以首版 APK 是 `versionCode=1`。PiInstaller 按 versionCode 判重，
 不升号覆盖安装会继续用旧解包资源（旧 agent env 仍然是坏的）。因此把 BuildProfile.kt
 改动在 `E:\work\MaaFwApp` 本地提交（`c0af5e2`，不推上游），`versionCode` 变成 2，
-安装即触发重解。当前 APK：`versionCode=3`、`versionName=dde9510`（第 3 次构建，见下方 SIFT 修复）。
+安装即触发重解。当前 APK：`versionCode=4`、`versionName=b16a65d`（见下方 SIFT / 弹窗两处修复）。
 以后每次改配方/agent 都要在 MaaFwApp 里多提交一次，否则设备端不会重解。
 
 **真机第二轮：不派遣 = PickCell 崩在 SIFT（11-20 17:35 日志）**
@@ -4846,10 +4846,45 @@ PickCell 分别给出 honey / alcohol / honey / berry 的 target，不再抛异�
 **当前 APK**：`versionCode=3`、`versionName=dde9510`，
 SHA256 `37636CCB08FEE390B52235A7D85C54196F8F49413160D9FF67EC39240AB9DB09`。
 
+**真机第三轮：派遣前被「恭喜獲得」弹窗挡住（11-20 17:52 日志）**
+
+现象：17:51:48 PickCell 选中 honey 并点了格子，之后 20 秒没有任何点击；
+17:52:09 `主循环选格` Succeeded（`wait_freezes` 超时后才结束），紧接着
+`确认资源详情` 连试 4 次（每次隔 1s）全失败，`主循环选格` Failed，
+`他人空秘境退出` 也被弹窗挡住失败。
+
+on_error 截图（17:52:12）是「恭喜獲得 玉璧 ×2」弹窗：面板占满屏宽、
+確定按钮在 y≈1050，`btn_dispatch`（ROI 200,930,320,160）完全被盖住。
+
+原因：`确认资源详情` 是纯 `TemplateMatch`。清弹窗只挂在三个地方 ——
+PickCell / PickRow 的 analyze 开头，以及 `掠奪` 的 next（`清弹窗后继续`）。
+「点格子 → 确认派遣浮窗」这一段没有护栏，奖励弹窗正好落在这里就断链。
+
+修复：
+
+- `agent/loop_ctl.py` 新增 `ConfirmDispatch`：先 `clear_popups`（和
+  PickCell 同一套：点面板外、点完复查、最多 50 条），再用
+  `context.run_recognition` 跑一次 `btn_dispatch` 的 TemplateMatch。
+- `agent/registry.py` 注册 `ConfirmDispatch`。
+- pipeline `确认资源详情` 改成 `recognition: Custom` +
+  `custom_recognition: ConfirmDispatch`，roi / threshold 走
+  `custom_recognition_param`。
+
+验证（离线）：
+
+- 弹窗帧 `find_popup` = **0.988**，`clear_popups` 点 (350,1326) 后复查消失。
+- 干净派遣面板 `btn_dispatch` = **0.958**（阈值 0.94），位置 (262,985)。
+- dry-run `ConfirmDispatch` 返回 box `[262,985,204,54]`，无按钮时返回 None。
+
+**当前 APK**：`versionCode=4`、`versionName=b16a65d`，
+SHA256 `3D2865BC714692E738DA648A7E1A7105B7006155EAC2D8E90E3C18669C18A0F1`。
+桌面包同轮重建：118 738 887 字节，
+SHA256 `ABF476C2AF8F58A09E24249A86993903BEABD22642CA91BCA73EA7032131D76E`。
+
 **产物**：
 
 - `release/AutoButter-android/AutoButter-0.1.0-android.apk`，80 029 078 字节
-- SHA256：`37636CCB08FEE390B52235A7D85C54196F8F49413160D9FF67EC39240AB9DB09`
+- SHA256：`3D2865BC714692E738DA648A7E1A7105B7006155EAC2D8E90E3C18669C18A0F1`
 - 签名：`E:\work\autobutter-release.jks`，alias `autobutter`，
   store/key password `autobutter2026`，证书 SHA256
   `58ab98700cf1aa1fad89c92437a13411880cc9104263fabd4bd8d992db63c963`
