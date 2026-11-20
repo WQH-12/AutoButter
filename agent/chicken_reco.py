@@ -69,9 +69,20 @@ class ChickenFinder:
         self.margin = margin
         self.area_lo = area_lo
         self.area_hi = area_hi
-        self.sift = cv2.SIFT_create()
-        self.bf = cv2.BFMatcher(cv2.NORM_L2)
+        # Android 上 agent 用的是 cv2lite（没有 SIFT / BFMatcher）。
+        # 之前这里直接调 SIFT_create()，PickCell 一进 scan 就抛
+        # AttributeError，主循环选格 直接判失败 —— 表现就是「进了秘境但不派遣」。
+        # 没有 SIFT 时退化成不检鸡，busy 仍由格子上/下方的倒计时判定
+        # （§3.55：真机倒计时比鸡妖动画帧可靠）。
+        self.sift = cv2.SIFT_create() if hasattr(cv2, "SIFT_create") else None
+        self.bf = (cv2.BFMatcher(cv2.NORM_L2)
+                   if self.sift is not None and hasattr(cv2, "BFMatcher")
+                   else None)
         self.templates = []      # (name, pose, kp, des, corners, tpl_area)
+        if self.sift is None:
+            print("[Chicken] no SIFT on this platform; busy falls back to timers",
+                  flush=True)
+            return
         for pose, names in POSES.items():
             for n in names:
                 p = os.path.join(tpl_dir, n)
@@ -92,6 +103,8 @@ class ChickenFinder:
 
     def find(self, image, roi, max_rounds=8):
         """返回 [(inliers, cx, cy, (x0,y0,x1,y1), tpl_name, pose)]。"""
+        if self.sift is None:
+            return []
         x0, y0, w, h = [int(v) for v in roi]
         crop = image[y0:y0 + h, x0:x0 + w]
         if crop.size == 0:
