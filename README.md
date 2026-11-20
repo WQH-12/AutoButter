@@ -1,6 +1,6 @@
 # AutoButter
 
-基于 [MaaFramework](https://github.com/MaaXYZ/MaaFramework) 的安卓小游戏资源自动获取工具。
+寻欢大侠秘境自动采集工具，基于 [MaaFramework](https://github.com/MaaXYZ/MaaFramework) 的安卓端自动化。
 
 手机连上电脑后自动完成：进秘境 → 按优先级选资源格 → 派鸡妖采集 → 探尋 → 换下一个秘境，
 循环到没有可采的资源为止。Windows 10/11 x64，图形界面是 MFAAvalonia。
