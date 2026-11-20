@@ -5489,3 +5489,75 @@ python tools\probe_click_spread.py
   `Resource: E:\work\AutoButter\install\resource`）。
 
 所以改完 `resource/` 或 `agent/` 要在 MFAAvalonia 里跑之前先执行 `tools\sync.ps1`。
+
+### 3.74 安卓 0.1.X 版本号 / 竖屏预览 / 重进校验误判，发布 v0.1.5（11-20）
+
+三条需求，都在 MaaFwApp 外壳与 `resource/pipeline/main.json` 上改，未动 agent。
+
+**1. APK versionName 改成 0.1.X**
+
+`versionName` 原本来自 `git describe --tags --always`，仓库没有 tag 时退化成短哈希
+（上一版是 `b16a65d`）。`build-logic/.../AndroidApplicationConventionPlugin.kt:66`
+本来就有 `build.versionName` / `BUILD_VERSION_NAME` 覆盖口，但 `local.properties`
+是 gitignore 的本机配置，换机器就丢。
+
+做法改成**打 tag**：MaaFwApp 在 versionCode 那次提交上打 `v0.1.5`，
+`versionNameFromDescribe()` 直接把 `v0.1.5` 解析成 `0.1.5`；之后每多一个提交
+自动变 `0.1.6-alpha.N`，仍落在 0.1.X。`versionCode` 不变，仍是
+`git rev-list --count HEAD`（本次 = 5）。
+
+坑：MaaFwApp 仓库没有配 user.name/email，`git commit` / `git tag -a` 直接失败，
+要用 `git -c user.name=AutoButter -c user.email=autobutter@local ...`。
+
+`interface.json` 的 `version` 同步改成 `0.1.5`（桌面版界面与 `build_release.py --zip`
+的包名都读它）。
+
+**2. 全屏预览按虚拟屏档位锁方向**
+
+`TasksPreviewSection.kt` 的 `FullscreenPreview` 原来无条件
+`SCREEN_ORIENTATION_SENSOR_LANDSCAPE`，720x1600 竖屏档放大预览时整个界面被转横，
+画面只剩中间一条。改成：
+
+```kotlin
+val wantLandscape = resolution.width > resolution.height
+val target = if (wantLandscape) SENSOR_LANDSCAPE else SCREEN_ORIENTATION_PORTRAIT
+```
+
+`DisposableEffect` 的 key 加上 `resolution.width/height`，退出仍还原 `original`。
+另外加了「方向已经对了就不设」的判断，避免 `requestedOrientation` 触发无谓重建。
+
+坑：`onDispose { if (original != null) activity?.requestedOrientation = original }`
+编译出 warning —— `original` 来自 `activity?.requestedOrientation`，Kotlin 2.x 的
+数据流分析能从 `original != null` 反推 `activity != null`，安全调用多余，改回 `activity.`。
+
+**3. 任务意外结束时停在自家秘境**
+
+日志 `E:\work\logdump-182641`：18:25:46 `Failed`，on_error 帧
+`2026.11.20-18.25.46.321_重进-找菜单.png` 就是自家秘境面板。
+
+根因：`重进-确认` / `确认已进入秘境` 用 `realm_marker.png`（只截了「管理」按钮上的
+鸡头 120x85）做落地校验，阈值 0.9。那一帧有只**正在采集的鸡妖正好压在管理按钮上方**，
+匹配分只有 0.717 → 校验判失败 → `on_error: 重进失败` → 任务结束，人留在秘境面板。
+
+同一批 on_error 帧，ROI `[0,400,720,1100]`：
+
+| 模板 | 秘境面板 | 秘境面板（被鸡妖挡） | 探寻列表 | 主界面 |
+|:---|:---|:---|:---|:---|
+| `realm_marker.png` | 0.986 | **0.717** | 0.42~0.56 | 0.45 |
+| `btn_manage.png` | 0.966 | **0.964** | ≤0.49 | 0.415 |
+
+改成 `btn_manage.png`（整颗按钮，遮挡下仍 0.96+），阈值不变。两处引用都换了，
+`realm_marker.png` 在 pipeline 里已无引用（模板文件保留，未删）。
+
+**发布 v0.1.5**
+
+| 产物 | 大小 | SHA256 |
+|:---|:---|:---|
+| `AutoButter-0.1.5-android.apk`（versionCode 5） | 80,033,174 | `8DB3F538DE8002EE64E77AD0539F97BA75F40A6600DA20024B3691E6AF1E3139` |
+| `AutoButter-0.1.5.zip`（301 文件 / 233.6 MB） | 118,738,971 | `94FBBBF3F325C4F964C032B048ECEC080AD1C88F7D2EDF6EA510D560F220C215` |
+
+- `README.md` 重写成纯使用说明：桌面版 + 安卓版（安装、Root/Shizuku、后台模式、
+  前台模式、常见问题），不再留开发内容；版本号指向 v0.1.5。
+- 仓库 About 描述与 Topics（`maa` / `maaframework` / `automation` / `android` 等）
+  已在上一轮改好，本轮未动。
+- 竖屏预览与重进校验都要实机确认：预览放大不再转横；重进后停在秘境面板不再误判失败。

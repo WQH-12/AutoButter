@@ -178,10 +178,12 @@
         "recognition": "DirectHit",
         "action": "DoNothing"
     },
-    // 弹窗关完的落地校验：秘境面板上的「管理」按钮
+    // 弹窗关完的落地校验：秘境面板上的「管理」按钮。
+    // 11-20 18:25 实机：realm_marker 只截了鸡头，被采集中的鸡妖挡住时只有 0.717；
+    // btn_manage 在同一帧 0.964（面板上恒 0.96+，列表/主界面 ≤0.49），改用整颗按钮。
     "确认已进入秘境": {
         "recognition": "TemplateMatch",
-        "template": "realm_marker.png",
+        "template": "btn_manage.png",
         "roi": [0, 400, 720, 1100],
         "threshold": 0.9,
         // 点完「淫乱秘境」可能还要等加载，这里放宽到 5s
@@ -827,7 +829,7 @@
     // 重进后的落地校验：秘境面板的「管理」按钮
     "重进-确认": {
         "recognition": "TemplateMatch",
-        "template": "realm_marker.png",
+        "template": "btn_manage.png",
         "roi": [0, 400, 720, 1100],
         "threshold": 0.9,
         "action": "Custom",

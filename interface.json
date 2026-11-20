@@ -6,7 +6,7 @@
     "description": "安卓平台小游戏资源自动获取。",
     "license": "MIT",
     "welcome": "首次使用！请先在设置中选择设备，然后确认截图正常后再运行任务。",
-    "version": "0.1.0",
+    "version": "0.1.5",
     "controller": [
         {
             "name": "安卓端",
