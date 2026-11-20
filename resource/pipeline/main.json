@@ -1,4 +1,18 @@
 {
+    // ===== 启动游戏（安卓单机版）=====
+    // 后台模式跑在虚拟屏上，虚拟屏初始是空的，必须由 pipeline 把游戏拉过去：
+    // MaaFwApp 的 native controller 收到 start_app 后会调 moveAppToVirtualDisplay。
+    // 桌面端（MFAAvalonia + adb）同样走这一步；游戏已在跑时只会切到前台，不重启。
+    "启动游戏": {
+        "recognition": "DirectHit",
+        "action": "StartApp",
+        "package": "com.jsgame.jianghu",
+        // H5 壳游戏冷启动要过登录/加载，给足时间；热启动多等几秒无副作用
+        "post_delay": 8000,
+        "next": ["主任务"],
+        "on_error": ["主任务"]
+    },
+
     // ===== 主任务入口 =====
     // 先「接线」再跑：把调试入口的终点改写成主循环的落点（只影响本次任务）。
     // 这样同一个节点既能单跑调试、又能进主链，不用维护两份。

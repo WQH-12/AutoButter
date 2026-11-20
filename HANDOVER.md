@@ -4743,10 +4743,31 @@ SIFT + RANSAC + 抹除迭代，`FeatureMatcher.cpp` 的 `while (scene.size() >= 
 `count >= min_inliers` + 面积比 0.4~3.0 + IoU 0.35 去重。
 桌面端 `hasattr(cv2, "SIFT_create")` 为真，仍走原来的 SIFT 路径。
 
+**后台模式要靠 pipeline 启动游戏**
+
+MaaFwApp 的虚拟屏初始是空的，native controller 只有在收到 `start_app` 时才会调
+`moveAppToVirtualDisplay` 把目标应用拉到虚拟屏。AutoButter 原来没有这个节点
+（§HANDOVER 旧记录：仓库里没有游戏包名），所以主任务前面补了一个：
+
+```json
+"启动游戏": {
+  "recognition": "DirectHit",
+  "action": "StartApp",
+  "package": "com.jsgame.jianghu",
+  "post_delay": 8000,
+  "next": ["主任务"],
+  "on_error": ["主任务"]
+}
+```
+
+`interface.json` 里主任务的 `entry` 从 `主任务` 改成 `启动游戏`。
+`on_error` 兜底到 `主任务`：桌面端包名不匹配时仍按老流程跑，不中断。
+8000ms 是给 H5 壳游戏的冷启动留的余量，热启动只会多等几秒。
+
 **产物**：
 
 - `release/AutoButter-android/AutoButter-0.1.0-android.apk`，80 029 078 字节
-- SHA256：`7677102AC0642CD714545F2522507CF10D95A6528F15C56A7EA17491B6B6F8D8`
+- SHA256：`7D04A5920EDA9AD4B34EEB4894B27BE563B53E6932F21AC41D9537C6B550F431`
 - 签名：`E:\work\autobutter-release.jks`，alias `autobutter`，
   store/key password `autobutter2026`，证书 SHA256
   `58ab98700cf1aa1fad89c92437a13411880cc9104263fabd4bd8d992db63c963`
