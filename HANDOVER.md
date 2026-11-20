@@ -4643,6 +4643,9 @@ VC++，Python 与 pip 包全靠用户手动装；装错版本（MaaFw 与内置 
   pip 包与 adb 不需要管理员。
 - 不内置 Python / adb：zip 维持 113 MB，避免体积翻倍和版本漂移；断网时打印手工链接。
 - `-Root` 参数只给开发期测试用（可以让脚本对着 `install/` 检测）。
+- 镜像：pip 官方源 → 清华 → 阿里云；Python python.org → 华为云；adb dl.google.com →
+  腾讯云 AndroidSDK；`-PreferMirror` 可让下载直接走镜像。.NET / VC++ 只有 `aka.ms`
+  （Azure CDN），没有可用国内镜像；winget 的 USTC 镜像实测 403，不做处理。
 
 **验证**（本机只跑只读检测，不真装）：
 

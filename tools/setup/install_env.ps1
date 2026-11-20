@@ -26,6 +26,7 @@ param(
     [switch]$SkipAdb,
     [switch]$NoElevate,
     [switch]$NoPause,
+    [switch]$PreferMirror,
     [string]$Root = ''
 )
 
@@ -128,6 +129,20 @@ function Expand-Zip([string]$Zip, [string]$Dest) {
     } catch { }
     Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
     [IO.Compression.ZipFile]::ExtractToDirectory($Zip, $Dest)
+}
+
+function Get-UrlOrder([string]$Official, [string]$Mirror) {
+    if (-not $Mirror) { return @($Official) }
+    if ($PreferMirror) { return @($Mirror, $Official) }
+    return @($Official, $Mirror)
+}
+
+function Get-RemoteFileFrom([string[]]$Urls, [string]$OutFile) {
+    foreach ($u in $Urls) {
+        Write-Host ('    下载 ' + $u) -ForegroundColor DarkGray
+        if (Get-RemoteFile $u $OutFile) { return $true }
+    }
+    return $false
 }
 
 function Test-Winget {
@@ -334,8 +349,10 @@ function Install-Python {
         Write-Host '    winget 失败，改用官方直链' -ForegroundColor Yellow
     }
     $exe = Join-Path $env:TEMP 'autobutter-python-3.12-amd64.exe'
-    $url = 'https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe'
-    if (-not (Get-RemoteFile $url $exe)) {
+    $file = 'python-3.12.10-amd64.exe'
+    $official = 'https://www.python.org/ftp/python/3.12.10/' + $file
+    $mirror = 'https://mirrors.huaweicloud.com/python/3.12.10/' + $file
+    if (-not (Get-RemoteFileFrom (Get-UrlOrder $official $mirror) $exe)) {
         Write-Host '    自动下载失败，请手动安装 Python 3.10+：https://www.python.org/downloads/windows/' -ForegroundColor Red
         return
     }
@@ -353,10 +370,18 @@ function Install-PipPackages([string]$Py) {
     }
     $common = @('-m', 'pip', 'install', '--disable-pip-version-check', '--no-input')
     $specs = @('MaaFw==5.8.0', 'opencv-python-headless')
-    & $Py @common @specs
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host '    默认源失败，改用清华镜像重试' -ForegroundColor Yellow
-        & $Py @common '-i' 'https://pypi.tuna.tsinghua.edu.cn/simple' @specs
+    $mirrors = @('https://pypi.tuna.tsinghua.edu.cn/simple',
+                 'https://mirrors.aliyun.com/pypi/simple/')
+    if ($PreferMirror) {
+        Write-Host ('    使用镜像源：' + $mirrors[0]) -ForegroundColor DarkGray
+        & $Py @common '-i' $mirrors[0] @specs
+    } else {
+        & $Py @common @specs
+    }
+    foreach ($mi in $mirrors) {
+        if ($LASTEXITCODE -eq 0) { break }
+        Write-Host ('    换源重试：' + $mi) -ForegroundColor Yellow
+        & $Py @common '-i' $mi @specs
     }
     Write-Host ('    pip 退出码 ' + $LASTEXITCODE) -ForegroundColor DarkGray
 }
@@ -364,8 +389,9 @@ function Install-PipPackages([string]$Py) {
 function Install-Adb {
     Write-Step '安装 adb (platform-tools)'
     $zip = Join-Path $env:TEMP 'autobutter-platform-tools.zip'
-    $url = 'https://dl.google.com/android/repository/platform-tools-latest-windows.zip'
-    if (-not (Get-RemoteFile $url $zip)) {
+    $official = 'https://dl.google.com/android/repository/platform-tools-latest-windows.zip'
+    $mirror = 'https://mirrors.cloud.tencent.com/AndroidSDK/platform-tools-latest-windows.zip'
+    if (-not (Get-RemoteFileFrom (Get-UrlOrder $official $mirror) $zip)) {
         Write-Host '    下载失败，可手动下载 platform-tools 后放进包内 platform-tools 目录' -ForegroundColor Red
         return
     }

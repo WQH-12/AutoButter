@@ -71,6 +71,10 @@ USAGE_DOC = """# AutoButter 使用说明
 以上全部由 `一键安装运行环境.bat` 自动检测补齐：只装缺的，已装即跳过，可反复运行；
 缺 .NET / VC++ / Python 时会弹 UAC 提权。只检测不安装：`一键安装运行环境.bat -CheckOnly`。
 
+下载源：pip 默认走 PyPI，失败依次换清华、阿里云；Python 默认 python.org，失败换华为云；
+adb 默认 dl.google.com，失败换腾讯云 AndroidSDK。国内网络慢时加 `-PreferMirror`
+直接用镜像，例如 `一键安装运行环境.bat -PreferMirror`。.NET 与 VC++ 只有微软官方 CDN，无镜像。
+
 ## 首次启动
 
 1. 双击 `启动AutoButter.bat`：先自检运行环境，缺什么会询问是否安装，装完自动拉起
@@ -329,11 +333,18 @@ def main() -> int:
 
     if args.zip:
         base = RELEASE_ROOT / ("AutoButter-%s" % version)
-        print("[zip] %s.zip" % base)
-        shutil.make_archive(str(base), "zip", root_dir=str(out.parent),
-                            base_dir=out.name)
-        print("[zip] 完成 %.1f MB"
-              % (Path(str(base) + ".zip").stat().st_size / 1048576))
+        target = Path(str(base) + ".zip")
+        print("[zip] %s" % target)
+        try:
+            shutil.make_archive(str(base), "zip", root_dir=str(out.parent),
+                                base_dir=out.name)
+        except PermissionError:
+            # 常见原因：Bandizip / 7-Zip / 资源管理器正打开着旧 zip
+            print("[FAIL] 无法写入 %s：文件被其它程序占用。" % target)
+            print("       请关闭正在查看该 zip 的程序后重跑；")
+            print("       目录包 %s 已是最新，可直接使用。" % out)
+            return 3
+        print("[zip] 完成 %.1f MB" % (target.stat().st_size / 1048576))
 
     return 0
 
