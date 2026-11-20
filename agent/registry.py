@@ -39,6 +39,7 @@ RECOGNITIONS = [
     ("DispatchPolicy", "loop_ctl:DispatchPolicy", None),
     ("WaitReturnGate", "loop_ctl:WaitReturnGate", None),
     ("RealmOtherGate", "loop_ctl:RealmOtherGate", None),
+    ("ConfirmDispatch", "loop_ctl:ConfirmDispatch", None),
     ("DispatchOkGate", "loop_ctl:DispatchOkGate", None),
     ("CooldownGate", "loop_ctl:CooldownGate", None),
     ("RefreshGate", "loop_ctl:RefreshGate", None),

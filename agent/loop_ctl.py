@@ -615,6 +615,48 @@ try:
             print("[CountReopen] reopen=%d" % _STATE["reopen"], flush=True)
             return True
 
+    class ConfirmDispatch(CustomRecognition):
+        """「确认资源详情」：先清「恭喜獲得」弹窗，再找派遣浮窗按钮。
+
+        弹窗会在两种时机盖住屏幕：上一轮派遣的资源收完了（奖励弹窗），
+        或者点的格子刚好被别人抢走。pipeline 里原来只有纯 TemplateMatch，
+        弹窗一盖就判失败，主链直接断（11-20 17:52 实机：点了格子 →
+        恭喜獲得 玉璧 弹窗 → 确认资源详情 连续 4 次失败 → 主循环选格 失败）。
+
+        这里复用 PickCell 用的 clear_popups：点面板外、点完复查、最多 50 条。
+        没弹窗时只多一次模板匹配（约 6~20ms）。
+        """
+
+        def analyze(self, context: Context, argv: CustomRecognition.AnalyzeArg):
+            param = json.loads(argv.custom_recognition_param or "{}") or {}
+            node_roi = getattr(argv, "roi", None)
+            if node_roi is not None and node_roi.w > 0 and node_roi.h > 0:
+                roi = [node_roi.x, node_roi.y, node_roi.w, node_roi.h]
+            else:
+                roi = param.get("roi") or [200, 930, 320, 160]
+            threshold = float(param.get("threshold", 0.94))
+
+            img = clear_popups(context, argv.image)
+            detail = context.run_recognition("__confirm_dispatch", img, {
+                "__confirm_dispatch": {
+                    "recognition": "TemplateMatch",
+                    "template": "btn_dispatch.png",
+                    "roi": [int(v) for v in roi],
+                    "threshold": threshold,
+                },
+            })
+            if detail is None or not detail.hit:
+                print("[ConfirmDispatch] btn_dispatch not found roi=%s threshold=%.2f"
+                      % (roi, threshold), flush=True)
+                return CustomRecognition.AnalyzeResult(
+                    box=None, detail={"hit": False, "roi": roi})
+
+            b = detail.best_result.box
+            box = (int(b.x), int(b.y), int(b.w), int(b.h))
+            print("[ConfirmDispatch] hit box=%s" % (list(box),), flush=True)
+            return CustomRecognition.AnalyzeResult(
+                box=box, detail={"hit": True, "box": list(box)})
+
     class RealmOtherGate(CustomRecognition):
         """命中 = 当前是别人秘境；用于掠奪后直接回列表找下一家。"""
 

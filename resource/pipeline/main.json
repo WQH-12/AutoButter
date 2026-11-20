@@ -260,12 +260,17 @@
     },
     // 点开格子后的落地校验：浮窗里的「掠奪」按钮
     "确认资源详情": {
-        "recognition": "TemplateMatch",
-        "template": "btn_dispatch.png",
-        // 浮窗固定在 (262,985)，204x54
+        // 浮窗固定在 (262,985)，204x54；实测 5 张截图都是 0.958，取 0.94 留余量。
+        // 11-20 17:52 实机：点格子后弹「恭喜獲得」，弹窗盖住 btn_dispatch，
+        // 纯 TemplateMatch 连试 4 次全失败，主链断在派遣前。改走 ConfirmDispatch：
+        // 先 clear_popups（点面板外、复查、最多 50 条），再找按钮。
+        "recognition": "Custom",
+        "custom_recognition": "ConfirmDispatch",
         "roi": [200, 930, 320, 160],
-        // 实测 5 张截图都是 0.958，取 0.94 留余量
-        "threshold": 0.94,
+        "custom_recognition_param": {
+            "roi": [200, 930, 320, 160],
+            "threshold": 0.94
+        },
         "action": "DoNothing",
         "timeout": 3000
     },
