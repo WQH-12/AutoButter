@@ -57,7 +57,7 @@ SETUP_ROOT_FILES = ["一键安装运行环境.bat", "启动AutoButter.bat"]
 
 VERSION_RE = re.compile(r'("version"\s*:\s*")([^"]*)(")')
 
-USAGE_DOC = """# AutoButter 使用说明
+USAGE_DOC = """# 寻欢大侠秘境自动采集 · 使用说明
 
 ## 运行环境
 
@@ -112,9 +112,9 @@ Get-Content manifest-sha256.txt | ForEach-Object {
 """
 
 
-README_DOC = """# AutoButter
+README_DOC = """# 寻欢大侠秘境自动采集
 
-基于 [MaaFramework](https://github.com/MaaXYZ/MaaFramework) 的安卓小游戏资源自动获取工具。
+基于 [MaaFramework](https://github.com/MaaXYZ/MaaFramework) 的安卓端自动化。
 
 本目录是可直接运行的发布包：`interface.json` + `resource/` + `agent/` + MFAAvalonia 运行时。
 

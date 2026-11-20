@@ -4677,9 +4677,13 @@ release\AutoButter\setup\install_env.ps1 -CheckOnly
 
 - 地址：https://github.com/WQH-12/AutoButter/releases/tag/v0.1.0
 - tag `v0.1.0` → `8ba822f`（= 当时的 main）
-- 资产：`AutoButter-0.1.0.zip`，113.2 MB（118 730 510 字节）
-- SHA256：`4382742ace43db6ccc6d54df3107c12c3b842746933494e5976f3e7af6932bb2`
+- 资产：`AutoButter-0.1.0.zip`，113.2 MB（118 730 538 字节）
+- SHA256：`84e82d9403acc73be372b20a43ac6a4ab4d299878cb9a38d0a47e75de5deb610`
   （GitHub 资产页的 digest 与本地文件一致）
+
+**11-20 二次替换**：包内 `docs/使用说明.md` 与 `docs/README.md` 标题改成
+「寻欢大侠秘境自动采集」，重新构建后删除旧资产（id 770967754）再上传同名文件。
+旧资产 SHA256 `4382742a…6932bb2` 已作废，以 `84e82d94…5deb610` 为准。
 
 **过程记录**：
 
