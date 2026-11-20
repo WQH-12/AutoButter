@@ -4764,10 +4764,49 @@ MaaFwApp 的虚拟屏初始是空的，native controller 只有在收到 `start_
 `on_error` 兜底到 `主任务`：桌面端包名不匹配时仍按老流程跑，不中断。
 8000ms 是给 H5 壳游戏的冷启动留的余量，热启动只会多等几秒。
 
+**真机首跑修复：agent 起不来（11-20 17:17 日志）**
+
+首轮真机日志（`maafw_logs_20261120_171731.zip`）里 agent 进程秒退：
+
+```
+ModuleNotFoundError: No module named 'maa'
+```
+
+原因：配方只给了 `PYTHONHOME` + `LD_LIBRARY_PATH`。MaaAgentCore 的 `maa` 在
+`site-packages/pure.zip`，`numpy` / `PIL` 在 `site-packages/` 下，都不在
+`PYTHONHOME` 推导出的 sys.path 上。配方 `agent.runtimes[].env` 补齐：
+
+```yaml
+PYTHONHOME: "{bundle}/prefix"
+PYTHONPATH: "{bundle}/site-packages:{bundle}/site-packages/pure.zip"
+MAAFW_BINARY_PATH: "{nativeLibs}"
+LD_LIBRARY_PATH: "{bundle}/prefix/lib:{bundle}/site-packages/chaquopy/lib:{bundle}/site-packages/numpy.libs:{nativeLibs}"
+```
+
+`maa/__init__.py` 用 `MAAFW_BINARY_PATH` 定位 `libMaaFramework.so`，必须显式给。
+同一份日志里 root 提权（`RootServiceStarter` 全绿）、`AgentInstaller` 解包 566 文件都正常；
+设备 Xiaomi 2211133C / Android 16 / API 36 / 1080x2400@120Hz。
+
+**竖屏虚拟屏：720x1600**
+
+游戏是竖屏，模板按 720 短边裁（`agent/layout.py` 的 `BASE_H = 1560`，实机 720x1600）。
+原配方 720P 预设是 1280x720 横屏，MaaFwApp 的 `BuildProfile.kt` 还硬性要求
+`width > height`。两处都改：
+
+- `build-logic/convention/src/main/kotlin/com/aliothmoon/maafw/gradle/BuildProfile.kt`
+  的校验改成 `require(width != height)`（只禁正方形）
+- 配方 `display.presets` 改为 `720x1600`、`dpi: 293`
+
+这条改动在 MaaFwApp 仓库，不在 AutoButter 仓库；重建 APK 前要确认
+`E:\work\MaaFwApp` 这份源码还在（未提交上游）。
+
+**版本号坑**：`versionCode` 没动。MaaFwApp 的 PiInstaller 按 versionCode 判重，
+覆盖安装后可能继续用旧解包资源；要么在应用里手动「重新解压资源」，要么清应用数据。
+
 **产物**：
 
 - `release/AutoButter-android/AutoButter-0.1.0-android.apk`，80 029 078 字节
-- SHA256：`7D04A5920EDA9AD4B34EEB4894B27BE563B53E6932F21AC41D9537C6B550F431`
+- SHA256：`99A03059D36A5235BA7F35F5D35A776E0E28A8C91E0AD177CCE9634B8E754B64`
 - 签名：`E:\work\autobutter-release.jks`，alias `autobutter`，
   store/key password `autobutter2026`，证书 SHA256
   `58ab98700cf1aa1fad89c92437a13411880cc9104263fabd4bd8d992db63c963`
