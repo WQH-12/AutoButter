@@ -4695,6 +4695,12 @@ release\AutoButter\setup\install_env.ps1 -CheckOnly
 **发版后要做的**：改完 `resource/`、`agent/`、`interface.json` 后重新构建并覆盖资产，
 版本号同步改 `interface.json` 的 `version`，再打新 tag。
 
+**11-20 17:30 三次替换（桌面 + 安卓同发）**：桌面包在 16:06 构建，早于
+`e2586fb`（主任务前置 `启动游戏`）与 agent 的 cv2lite 改动，已用
+`tools/build_release.py --clean --zip` 重建：301 文件 / 233.6 MB，
+SHA256 `45d87e787fd730173f69faaa7964efb3fffef1a57a51bac56aac067dc1294525`。
+同一 Release 增加 `AutoButter-0.1.0-android.apk`（见 §3.73）。
+
 ### 3.73 安卓单机版：MaaFwApp 外壳 + cv2lite（11-20）
 
 目标：不连电脑，APK 里带资源、agent、识别模板，靠 Shizuku / root 驱动后台虚拟屏。
