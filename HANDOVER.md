@@ -4746,7 +4746,7 @@ SIFT + RANSAC + 抹除迭代，`FeatureMatcher.cpp` 的 `while (scene.size() >= 
 **产物**：
 
 - `release/AutoButter-android/AutoButter-0.1.0-android.apk`，80 029 078 字节
-- SHA256：`2D0EEC998B5F402CE0B5E6BA38B57495F643768707D2ECEAEE636E8CD2BA8A72`
+- SHA256：`7677102AC0642CD714545F2522507CF10D95A6528F15C56A7EA17491B6B6F8D8`
 - 签名：`E:\work\autobutter-release.jks`，alias `autobutter`，
   store/key password `autobutter2026`，证书 SHA256
   `58ab98700cf1aa1fad89c92437a13411880cc9104263fabd4bd8d992db63c963`
