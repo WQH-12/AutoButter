@@ -4810,13 +4810,46 @@ LD_LIBRARY_PATH: "{bundle}/prefix/lib:{bundle}/site-packages/chaquopy/lib:{bundl
 原本只有 1 个提交，所以首版 APK 是 `versionCode=1`。PiInstaller 按 versionCode 判重，
 不升号覆盖安装会继续用旧解包资源（旧 agent env 仍然是坏的）。因此把 BuildProfile.kt
 改动在 `E:\work\MaaFwApp` 本地提交（`c0af5e2`，不推上游），`versionCode` 变成 2，
-安装即触发重解。当前 APK：`versionCode=2`、`versionName=c0af5e2`。
+安装即触发重解。当前 APK：`versionCode=3`、`versionName=dde9510`（第 3 次构建，见下方 SIFT 修复）。
 以后每次改配方/agent 都要在 MaaFwApp 里多提交一次，否则设备端不会重解。
+
+**真机第二轮：不派遣 = PickCell 崩在 SIFT（11-20 17:35 日志）**
+
+现象：主任务能进秘境，但「主循环选格」每次都 Failed，随后「他人空秘境退出」，
+从来不点格子、不派遣。日志里 `PickCell` 的 all_results 恒为 `box [0,0,0,0]`，
+而且 agent 自己的 stdout 里**没有** `[PickCell] no target ...` 那一行 —— 说明
+不是「没有目标」，是 analyze 抛异常直接返回空。
+
+core logcat 里能对上：
+
+```
+agent! Traceback (most recent call last):
+agent! AttributeError: module 'cv2lite' has no attribute 'SIFT_create'
+```
+
+调用链：`PickCell.analyze → CellPicker.scan → self.chicken.find` →
+`ChickenFinder.__init__` 里的 `cv2.SIFT_create()`。`chicken_reco.ChickenRecognition`
+当初做了 `hasattr(cv2, "SIFT_create")` 兜底，但 PickCell 走的是纯算法
+`ChickenFinder`，没走那条分支，所以 Android 上必崩。
+
+修复（`agent/chicken_reco.py`）：
+
+- `sift = cv2.SIFT_create() if hasattr(cv2, "SIFT_create") else None`，
+  `bf` 同理；没有 SIFT 时 `templates` 为空、`find()` 直接返回 `[]`。
+- 打一行 `[Chicken] no SIFT on this platform; busy falls back to timers`，
+  下次日志能直接看出来走的是哪条路。
+- busy 判定退回「格子上/下方倒计时」（§3.55 已确认倒计时比鸡妖动画可靠）。
+
+验证：把 `cv2lite` 顶成 `cv2` 跑 17:33/17:35 的 4 张 on_error 帧，
+PickCell 分别给出 honey / alcohol / honey / berry 的 target，不再抛异常。
+
+**当前 APK**：`versionCode=3`、`versionName=dde9510`，
+SHA256 `37636CCB08FEE390B52235A7D85C54196F8F49413160D9FF67EC39240AB9DB09`。
 
 **产物**：
 
 - `release/AutoButter-android/AutoButter-0.1.0-android.apk`，80 029 078 字节
-- SHA256：`EDE5B29FF583845077C1B8254794D19B4F68751A8EBD321C29CBE2EB9A97DECF`
+- SHA256：`37636CCB08FEE390B52235A7D85C54196F8F49413160D9FF67EC39240AB9DB09`
 - 签名：`E:\work\autobutter-release.jks`，alias `autobutter`，
   store/key password `autobutter2026`，证书 SHA256
   `58ab98700cf1aa1fad89c92437a13411880cc9104263fabd4bd8d992db63c963`
