@@ -4800,13 +4800,17 @@ LD_LIBRARY_PATH: "{bundle}/prefix/lib:{bundle}/site-packages/chaquopy/lib:{bundl
 这条改动在 MaaFwApp 仓库，不在 AutoButter 仓库；重建 APK 前要确认
 `E:\work\MaaFwApp` 这份源码还在（未提交上游）。
 
-**版本号坑**：`versionCode` 没动。MaaFwApp 的 PiInstaller 按 versionCode 判重，
-覆盖安装后可能继续用旧解包资源；要么在应用里手动「重新解压资源」，要么清应用数据。
+**版本号**：MaaFwApp 的 `versionCode = git rev-list --count HEAD`，这份是浅克隆，
+原本只有 1 个提交，所以首版 APK 是 `versionCode=1`。PiInstaller 按 versionCode 判重，
+不升号覆盖安装会继续用旧解包资源（旧 agent env 仍然是坏的）。因此把 BuildProfile.kt
+改动在 `E:\work\MaaFwApp` 本地提交（`c0af5e2`，不推上游），`versionCode` 变成 2，
+安装即触发重解。当前 APK：`versionCode=2`、`versionName=c0af5e2`。
+以后每次改配方/agent 都要在 MaaFwApp 里多提交一次，否则设备端不会重解。
 
 **产物**：
 
 - `release/AutoButter-android/AutoButter-0.1.0-android.apk`，80 029 078 字节
-- SHA256：`99A03059D36A5235BA7F35F5D35A776E0E28A8C91E0AD177CCE9634B8E754B64`
+- SHA256：`EDE5B29FF583845077C1B8254794D19B4F68751A8EBD321C29CBE2EB9A97DECF`
 - 签名：`E:\work\autobutter-release.jks`，alias `autobutter`，
   store/key password `autobutter2026`，证书 SHA256
   `58ab98700cf1aa1fad89c92437a13411880cc9104263fabd4bd8d992db63c963`
@@ -4836,8 +4840,9 @@ $bt="E:\work\toolchain\android-sdk\build-tools\37.0.0"
 
 **未验证（要用户在真机确认）**：
 
-- agent 在 Android 上能否启动（`bin/python3` + PYTHONHOME + chaquopy/lib 的
-  LD_LIBRARY_PATH），以及 `Toolkit.init_option("./")` 在解包根下是否正常。
+- agent 在 Android 上能否启动（`bin/python3` + PYTHONHOME/PYTHONPATH + chaquopy/lib 的
+  LD_LIBRARY_PATH）。首轮已确认 `maa` 导入失败，补齐 PYTHONPATH 后尚未真机复测；
+  `Toolkit.init_option("./")` 在解包根下是否正常也还没验。
 - FeatureMatch 路径下鸡妖识别的实际命中率 / 误检率（桌面 SIFT 路径的阈值
   不一定直接平移）。
 - 720P 后台虚拟屏下模板匹配分数是否与桌面 720 短边一致。
