@@ -21,6 +21,7 @@ release/AutoButter/         # 发布包，tools\build_release.py 生成
 deps/tools/                 # 从 MaaFramework 同步的 JSON Schema
 docs/                       # 模板自带的开发说明
 tools/                      # 校验 / 同步 / 构建脚本
+tools/setup/                # 发布包运行环境检测/安装（install_env.ps1 + 两个 .bat 入口）
 ```
 
 工作区根目录就是 Maa 项目根：`interface.json`、`resource/`、`agent/` 同级，
@@ -34,6 +35,8 @@ tools/                      # 校验 / 同步 / 构建脚本
    解压到 `resource/model/ocr/`，确保有 `det.onnx`、`rec.onnx`、`keys.txt`。
 3. **Node.js 22+**：用于跑 `maa-tools` 做静态检查。
 4. **MFAAvalonia**：运行和调试用的 GUI，需 .NET 10 Desktop Runtime。
+5. **终端用户**：发布包根目录的 `一键安装运行环境.bat` 会检测并补齐 .NET 10 / VC++ /
+   Python / `MaaFw==5.8.0` / adb，只装缺的（实现在 `tools/setup/install_env.ps1`）。
 
 ## 常用命令
 

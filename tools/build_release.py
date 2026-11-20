@@ -50,6 +50,11 @@ RUNTIME_FILES = [
 RUNTIME_DIRS = ["libs", "runtimes", "plugins"]
 MODEL_FILES = ["det.onnx", "rec.onnx", "keys.txt", "README.md"]
 
+# 运行环境安装脚本：setup/ 下的 ps1 + 根目录两个双击入口
+SETUP_DIR = ROOT / "tools" / "setup"
+SETUP_SUB_FILES = ["install_env.ps1"]
+SETUP_ROOT_FILES = ["一键安装运行环境.bat", "启动AutoButter.bat"]
+
 VERSION_RE = re.compile(r'("version"\s*:\s*")([^"]*)(")')
 
 USAGE_DOC = """# AutoButter 使用说明
@@ -57,14 +62,19 @@ USAGE_DOC = """# AutoButter 使用说明
 ## 运行环境
 
 - Windows 10/11 x64
+- .NET 10 运行时、VC++ 2015-2022 x64（`MFAAvalonia.exe` 与 MaaFramework 原生库依赖）
 - Python 3.10+，命令名必须是 `python`（MFAAvalonia 用它在后台启动 agent）
-- MaaFw Python 包：`python -m pip install "MaaFw==5.8.0"`
-- adb 在 PATH 中（本包不自带 adb，可用 platform-tools 或 QtScrcpy 自带的那份）
+- pip 包：`MaaFw==5.8.0`（必须与包内 MaaFramework 同版本）+ `opencv-python-headless`
+- adb：PATH 里没有时会自动下载到包内 `platform-tools\\` 并加入用户 PATH
 - 手机开启 USB 调试并授权本机
+
+以上全部由 `一键安装运行环境.bat` 自动检测补齐：只装缺的，已装即跳过，可反复运行；
+缺 .NET / VC++ / Python 时会弹 UAC 提权。只检测不安装：`一键安装运行环境.bat -CheckOnly`。
 
 ## 首次启动
 
-1. 双击 `MFAAvalonia.exe`。
+1. 双击 `启动AutoButter.bat`：先自检运行环境，缺什么会询问是否安装，装完自动拉起
+   `MFAAvalonia.exe`。也可以跳过自检直接双击 `MFAAvalonia.exe`。
 2. 在「设置 → 设备」里选择手机，点截图确认画面正常（不是黑屏）。
 3. 任务队列勾选「主任务」，其它调试任务不要勾。
 4. 手机停在冒险主页面（或秘境列表 / 自家秘境面板）再点开始。
@@ -81,6 +91,9 @@ USAGE_DOC = """# AutoButter 使用说明
 | `resource/model/ocr/` | OCR 模型 |
 | `agent/` | 自定义识别/动作（Python 子进程） |
 | `docs/` | 说明与许可证 |
+| `setup/install_env.ps1` | 运行环境检测 / 安装脚本（.NET、VC++、Python、pip 包、adb） |
+| `一键安装运行环境.bat` | 双击补齐缺失运行环境 |
+| `启动AutoButter.bat` | 自检 + 启动 MFAAvalonia |
 | `manifest-sha256.txt` | 发布包文件校验清单 |
 
 ## 校验
@@ -101,11 +114,11 @@ README_DOC = """# AutoButter
 
 本目录是可直接运行的发布包：`interface.json` + `resource/` + `agent/` + MFAAvalonia 运行时。
 
-## 运行环境
+## 快速开始
 
-- Windows 10/11 x64
-- Python 3.10+（命令名 `python`）与 `MaaFw==5.8.0`
-- adb 在 PATH 中；手机开启 USB 调试
+1. 双击 `一键安装运行环境.bat`：自动补齐 .NET 10 / VC++ 2015-2022 / Python 3.10+ /
+   `MaaFw==5.8.0` / `opencv-python-headless` / adb，只装缺的。
+2. 双击 `启动AutoButter.bat`（或 `MFAAvalonia.exe`）启动。
 
 详细步骤见 `docs/使用说明.md`。
 
@@ -120,6 +133,7 @@ README_DOC = """# AutoButter
 | `resource/model/ocr/` | OCR 模型 |
 | `agent/` | 自定义识别/动作（Python 子进程） |
 | `docs/` | 使用说明、许可证 |
+| `setup/` | 运行环境检测 / 安装脚本 |
 | `manifest-sha256.txt` | 文件校验清单 |
 
 ## 许可
@@ -183,6 +197,7 @@ def main() -> int:
         PROJECT / "resource" / "model" / "ocr",
         AGENT / "main.py",
     ]
+    required += [SETUP_DIR / n for n in SETUP_SUB_FILES + SETUP_ROOT_FILES]
     if not args.no_runtime:
         required.append(INSTALL / "MFAAvalonia.exe")
     missing = [str(p) for p in required if not p.exists()]
@@ -246,11 +261,19 @@ def main() -> int:
         copy_file(p, out / "agent" / p.name)
         pairs.append((p, out / "agent" / p.name))
 
-    print("[5/6] docs/")
+    print("[5/6] docs/ + setup/")
     (out / "docs").mkdir(parents=True, exist_ok=True)
     (out / "docs" / "README.md").write_text(README_DOC, encoding="utf-8")
     copy_file(ROOT / "LICENSE", out / "docs" / "LICENSE")
     (out / "docs" / "使用说明.md").write_text(USAGE_DOC, encoding="utf-8")
+    for name in SETUP_SUB_FILES:
+        src = SETUP_DIR / name
+        copy_file(src, out / "setup" / name)
+        pairs.append((src, out / "setup" / name))
+    for name in SETUP_ROOT_FILES:
+        src = SETUP_DIR / name
+        copy_file(src, out / name)
+        pairs.append((src, out / name))
 
     print("[6/6] 校验 + 清单")
     errors = []
@@ -267,7 +290,9 @@ def main() -> int:
     for rel in ["interface.json", "resource/pipeline/main.json",
                 "resource/model/ocr/det.onnx", "resource/model/ocr/rec.onnx",
                 "resource/model/ocr/keys.txt", "agent/main.py",
-                "agent/registry.py", "docs/使用说明.md"]:
+                "agent/registry.py", "docs/使用说明.md",
+                "setup/install_env.ps1", "一键安装运行环境.bat",
+                "启动AutoButter.bat"]:
         if not (out / rel).exists():
             errors.append("缺少 %s" % rel)
     if not args.no_runtime and not (out / "MFAAvalonia.exe").exists():
@@ -293,7 +318,7 @@ def main() -> int:
     print("[ok] 一致性: pipeline/image/model/agent 共 %d 个文件 SHA256 全部匹配"
           % len(pairs))
     for sub in ["resource/pipeline", "resource/image", "resource/model/ocr",
-                "agent", "docs", "libs", "runtimes", "plugins"]:
+                "agent", "docs", "setup", "libs", "runtimes", "plugins"]:
         d = out / sub
         if d.is_dir():
             n, b = dir_size(d)

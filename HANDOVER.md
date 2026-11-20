@@ -4609,6 +4609,65 @@ validate_schema.py（临时 venv）                    → pipeline + interface 
   `interface.json` 里的 6 个入口；「开发顺序」改成 `resource/` + `sync.ps1`
   的实际流程。
 
+### 3.71 发布包自带运行环境安装：`setup/install_env.ps1`（11-20）
+
+**背景**：§3.69/§3.70 的发布包只带 Maa 项目与 MFAAvalonia 运行时，终端用户还需要
+.NET 10、VC++ 2015-2022、Python 3.10+、`MaaFw==5.8.0`、`opencv-python-headless`、
+adb。原来只有 MFAAvalonia 自带的 `DependencySetup_依赖库安装_win.bat` 覆盖 .NET 与
+VC++，Python 与 pip 包全靠用户手动装；装错版本（MaaFw 与内置 MaaFramework 不一致）
+就会撞 §3.59 的 Protocol version mismatch。
+
+**新增文件**（源在 `tools/setup/`，构建时拷进发布包）：
+
+| 文件 | 发布包位置 | 作用 |
+|---|---|---|
+| `install_env.ps1` | `setup/install_env.ps1` | 6 项检测 + 只装缺的 |
+| `一键安装运行环境.bat` | 包根 | 双击入口，参数透传给 ps1 |
+| `启动AutoButter.bat` | 包根 | 先 `-CheckOnly`，缺环境就问 Y/N，装完再启动 exe |
+
+**检测 / 安装项**：
+
+| 项 | 检测方式 | 缺失时安装 |
+|---|---|---|
+| .NET 10 运行时 | `dotnet --list-runtimes` 找 `Microsoft.(WindowsDesktop 或 NETCore).App 10.` | winget `Microsoft.DotNet.DesktopRuntime.10` → 官方直链 `aka.ms/dotnet/10.0/...` |
+| VC++ 2015-2022 x64 | 注册表 `HKLM\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64` 的 `Installed` | winget `Microsoft.VCRedist.2015+.x64` → `aka.ms/vs/17/release/vc_redist.x64.exe` |
+| Python 3.10+ | `python` / `py -3` / 常见安装目录逐个试版本 | winget `Python.Python.3.12` → python.org 直链 |
+| pip 包 | `importlib.metadata.version('MaaFw')` 必须 5.8.0，且 `import cv2` 成功 | `pip install MaaFw==5.8.0 opencv-python-headless`，失败换清华镜像 |
+| 版本对齐 | `runtimes/win-x64/native/*.dll` 与 MaaFw 自带 bin 逐个 SHA256 | 只报告，不自动改（§3.59） |
+| adb | `Get-Command adb` → 包内 `platform-tools/adb.exe` | 下载 `platform-tools-latest-windows.zip` 解压到包内并写入用户 PATH |
+
+**设计取舍**：
+
+- 幂等：已装即跳过；`-CheckOnly` 只读，退出码 0/1，`启动AutoButter.bat` 用它决定是否弹安装。
+- 提权：只有缺 .NET / VC++ / Python 时才 `Start-Process -Verb RunAs` 重启自身；
+  pip 包与 adb 不需要管理员。
+- 不内置 Python / adb：zip 维持 113 MB，避免体积翻倍和版本漂移；断网时打印手工链接。
+- `-Root` 参数只给开发期测试用（可以让脚本对着 `install/` 检测）。
+
+**验证**（本机只跑只读检测，不真装）：
+
+```text
+powershell -File tools\setup\install_env.ps1 -CheckOnly -NoPause -Root install
+  → 6 项全 OK，MaaFw 与内置 MaaFramework 14 个 dll 一致，exit=0
+剥离 PATH / ProgramFiles 的沙箱 harness 跑同一脚本
+  → .NET / Python / pip / adb 报缺失，exit=1（红路径正常）
+python tools\build_release.py --clean --zip
+  → 300 文件 / 233.5 MB，zip 113.2 MB；setup/ 1 个 + 根目录 2 个入口已进 manifest
+release\AutoButter\setup\install_env.ps1 -CheckOnly
+  → 包目录解析为 release\AutoButter，14 个 dll 一致，exit=0
+```
+
+**同轮修复**：首版用 `Get-FileHash` 比对 dll，从 `cmd` 拉起 PowerShell 5.1 时该 cmdlet
+可能因 `PSModulePath` 被 pwsh 7 污染而不可用，两个 `$null` 比较恒等 → 误报「全部一致」。
+改成 .NET `SHA256` + `IO.File` 自己算，`catch` 里把文件记成差异项；`Expand-Archive` 加
+`ZipFile` 兜底，提权改用 `ProcessStartInfo` + `Verb=runas`，VC++ 检测改读
+`Microsoft.Win32.Registry`，不再依赖可选模块。伪造包验证（`MaaFramework.dll` 一致 +
+多一个 `Bogus.dll`）→ 报「协议版本不一致：Bogus.dll」，exit=1。
+
+**边界**：真装流程（下载并安装 .NET / Python / VC++）未在本机实测——本机已全部就绪，
+按约定交给用户在有缺失的机器上验。`DependencySetup_依赖库安装_win.bat` 仍随包发布，
+功能被 `一键安装运行环境.bat` 覆盖。
+
 ## 4. 下一步待办
 
 ### 4.0 链路开工前置（11-10 已全部完成）

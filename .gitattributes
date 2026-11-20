@@ -5,3 +5,8 @@
 # Isolate binary files in case the auto-detection algorithm fails and
 # marks them as text files (which could brick them).
 *.{png,jpg,jpeg,gif,webp,woff,woff2} binary
+
+# Windows 脚本必须用 CRLF 检出：cmd.exe 对 LF-only 的 goto/label 处理不可靠
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
