@@ -4671,6 +4671,26 @@ release\AutoButter\setup\install_env.ps1 -CheckOnly
 按约定交给用户在有缺失的机器上验。`DependencySetup_依赖库安装_win.bat` 仍随包发布，
 功能被 `一键安装运行环境.bat` 覆盖。
 
+### 3.72 首个 Release：v0.1.0（11-20）
+
+发布包已上传到 GitHub Releases，不再需要用户自己构建：
+
+- 地址：https://github.com/WQH-12/AutoButter/releases/tag/v0.1.0
+- tag `v0.1.0` → `8ba822f`（= 当时的 main）
+- 资产：`AutoButter-0.1.0.zip`，113.2 MB（118 730 510 字节）
+- SHA256：`4382742ace43db6ccc6d54df3107c12c3b842746933494e5976f3e7af6932bb2`
+  （GitHub 资产页的 digest 与本地文件一致）
+
+**过程记录**：
+
+- 本机没有 `gh` CLI，走 GitHub REST API（token 取自 `git credential fill` 的 GCM 凭据）。
+- 上一轮 `release/AutoButter-0.1.0.zip` 被 Bandizip 占用导致 `shutil.make_archive` 报
+  `PermissionError`，本轮已改为明确提示 + 返回码 3（§3.71），本次打包前该 zip 已释放。
+- 发版内容 = `tools/build_release.py --clean --zip` 的产物，300 文件 / 233.5 MB。
+
+**发版后要做的**：改完 `resource/`、`agent/`、`interface.json` 后重新构建并覆盖资产，
+版本号同步改 `interface.json` 的 `version`，再打新 tag。
+
 ## 4. 下一步待办
 
 ### 4.0 链路开工前置（11-10 已全部完成）

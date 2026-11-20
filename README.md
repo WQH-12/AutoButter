@@ -20,9 +20,8 @@
 
 ## 快速开始
 
-1. 拿到发布包 `AutoButter-0.1.0.zip`，解压到**英文路径**（例如 `D:\AutoButter`）。
-   仓库不存二进制，自己构建即可：`python tools\build_release.py --clean --zip`，
-   产物是 `release/AutoButter-0.1.0.zip` 和同内容的 `release/AutoButter/` 目录。
+1. 从 [Releases](https://github.com/WQH-12/AutoButter/releases) 下载 `AutoButter-0.1.0.zip`，
+   解压到**英文路径**（例如 `D:\AutoButter`）。
 2. 双击 `一键安装运行环境.bat`。它会逐项检测并只装缺的：.NET 10 运行时、
    VC++ 2015-2022 x64、Python 3.10+、`MaaFw==5.8.0`、`opencv-python-headless`、adb。
    缺系统组件时会弹 UAC；国内网络可加 `-PreferMirror` 直接走镜像源。
